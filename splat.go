@@ -49,7 +49,7 @@ func (s *App) Open(addr string, endpoint string) error {
 
 		res, err := json.Marshal(&response)
 		if err != nil {
-			log.Println(err)
+			log.Println("Splat:", err)
 			return
 		}
 
@@ -75,6 +75,7 @@ func (s *App) fromRequest(r *http.Request) (p *Payload, err error) {
 		return nil, err
 	}
 
+	// I can't find a good way to do this. Please start using JSON, Slack
 	kv := make(map[string]string)
 	split := strings.Split(string(body), "&")
 	for _, v := range split {
@@ -84,7 +85,6 @@ func (s *App) fromRequest(r *http.Request) (p *Payload, err error) {
 		kv[t[0]] = t[1]
 	}
 
-	// Why is there no good way to do this. Please start using JSON, Slack
 	p = new(Payload)
 	if val, ok := kv["token"]; ok {
 		p.Token = val
@@ -133,7 +133,7 @@ func (s *App) fromRequest(r *http.Request) (p *Payload, err error) {
 func (s *App) checkSignature(r *http.Request, body []byte) (err error) {
 
 	timestamp := r.Header.Get("X-Slack-Request-Timestamp")
-	// TODO: Check timestamp for possible replay attack
+	// TODO: Check timestamp age for possible replay attack
 
 	base := "v0:" + timestamp + ":" + string(body)
 	sign := r.Header.Get("X-Slack-Signature")
