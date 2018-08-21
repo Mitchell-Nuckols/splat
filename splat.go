@@ -30,6 +30,16 @@ func (s *App) RegisterCommand(name string, handler func(*Payload) *Response) {
 	s.commands[name] = Command{name, handler}
 }
 
+// RegisterAction creates actions on the Slack app
+func (s *App) RegisterAction(callbackID, endpoint string, handler func(*ActionPayload)) error {
+	if len(s.actions) == 5 {
+		return errors.New("cannot add another action (exceeded limit of 5)")
+	}
+
+	s.actions[len(s.actions)-1] = Action{callbackID, endpoint, handler}
+	return nil
+}
+
 // Open starts HTTP server listening on addr at endpoint
 func (s *App) Open(addr string, endpoint string) error {
 	http.HandleFunc(endpoint, func(w http.ResponseWriter, r *http.Request) {
