@@ -46,16 +46,20 @@ func (s *App) Open(addr string, endpoint string) error {
 				break
 			}
 		}
+		if response != nil {
+			res, err := json.Marshal(&response)
+			if err != nil {
+				log.Println("Splat:", err)
+				return
+			}
 
-		res, err := json.Marshal(&response)
-		if err != nil {
-			log.Println("Splat:", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write(res)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(res)
 	})
 
 	return http.ListenAndServe(addr, nil)
