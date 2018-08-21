@@ -6,6 +6,17 @@ type Command struct {
 	Execute func(*Payload) *Response
 }
 
+// ActionPayload is the action info sent from Slack
+type ActionPayload struct {
+}
+
+// Action provides a structure for building action handlers
+type Action struct {
+	CallbackID string
+	Endpoint   string
+	Execute    func(*ActionPayload)
+}
+
 // Payload is the data recieved from Slack
 type Payload struct {
 	Token,
@@ -25,9 +36,10 @@ type Payload struct {
 
 // Response is the data sent back to Slack
 type Response struct {
-	Text        string `json:"text,omitempty"`
-	Attachments `json:"attachments,omitempty"`
-	Markdown    bool `json:"mrkdwn,omitempty"`
+	Text         string `json:"text,omitempty"`
+	ResponseType string `json:"response_type,omitempty"`
+	Attachments  `json:"attachments,omitempty"`
+	Markdown     bool `json:"mrkdwn,omitempty"`
 }
 
 // Attachments are part of extra data that can be sent in a Slack response

@@ -17,11 +17,12 @@ import (
 type App struct {
 	SigningSecret string
 	commands      map[string]Command
+	actions       []Action
 }
 
 // New creates a new SlackApp object (please don't kill me for using 'object')
 func New(secret string) *App {
-	return &App{secret, make(map[string]Command)}
+	return &App{secret, make(map[string]Command), make([]Action, 5)}
 }
 
 // RegisterCommand creates a new command to be executed when it is called from Slack
@@ -61,6 +62,37 @@ func (s *App) Open(addr string, endpoint string) error {
 
 		w.WriteHeader(http.StatusOK)
 	})
+
+	for _, a := range s.actions {
+		http.HandleFunc(endpoint+"/"+a.Endpoint, func(w http.ResponseWriter, r *http.Request) {
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			defer r.Body.Close()
+
+			log.Println(string(body))
+
+			err = s.checkSignature(r, body)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			payload := new(ActionPayload)
+
+			err = json.Unmarshal(body, &payload)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+
+			a.Execute(payload)
+		})
+	}
 
 	return http.ListenAndServe(addr, nil)
 }
