@@ -27,7 +27,7 @@ func New(secret string) *App {
 
 // RegisterCommand creates a new command to be executed when it is called from Slack
 func (s *App) RegisterCommand(name string, handler func(*Payload) *Response) {
-	s.commands[name] = Command{name, handler}
+	s.commands["/"+name] = Command{"/" + name, handler}
 }
 
 // RegisterAction creates actions on the Slack app
