@@ -9,34 +9,25 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // App is the container for Slack config and commands
 type App struct {
 	SigningSecret string
 	commands      map[string]Command
-	actions       []Action
 }
 
 // New creates a new SlackApp object (please don't kill me for using 'object')
 func New(secret string) *App {
-	return &App{secret, make(map[string]Command), make([]Action, 5)}
+	return &App{secret, make(map[string]Command)}
 }
 
 // RegisterCommand creates a new command to be executed when it is called from Slack
 func (s *App) RegisterCommand(name string, handler func(*SlashRequest)) {
 	s.commands["/"+name] = Command{"/" + name, handler}
-}
-
-// RegisterAction creates actions on the Slack app
-func (s *App) RegisterAction(callbackID, name string, handler func(*ActionPayload)) error {
-	if len(s.actions) == 5 {
-		return errors.New("cannot add another action (exceeded limit of 5)")
-	}
-
-	s.actions[len(s.actions)-1] = Action{callbackID, name, handler}
-	return nil
 }
 
 // Open starts HTTP server listening on addr at endpoint
@@ -57,36 +48,6 @@ func (s *App) Open(addr string, endpoint string) error {
 
 		w.WriteHeader(http.StatusOK)
 	})
-
-	/*http.HandleFunc(endpoint+"/actions", func(w http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		defer r.Body.Close()
-
-		log.Println(string(body))
-
-		err = s.checkSignature(r, body)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		payload := new(ActionPayload)
-
-		err = json.Unmarshal(body, &payload)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-
-		for
-		a.Execute(payload)
-	})*/
 
 	return http.ListenAndServe(addr, nil)
 }
@@ -115,6 +76,7 @@ func (s *App) fromRequest(r *http.Request) (p *SlashRequest, err error) {
 		kv[t[0]] = t[1]
 	}
 
+	// Map all body parameters to a SlashRequest struct
 	p = new(SlashRequest)
 	if val, ok := kv["token"]; ok {
 		p.Token = val
@@ -160,10 +122,19 @@ func (s *App) fromRequest(r *http.Request) (p *SlashRequest, err error) {
 }
 
 // Validates the request signature from Slack
-func (s *App) checkSignature(r *http.Request, body []byte) (err error) {
+func (s *App) checkSignature(r *http.Request, body []byte) error {
 
 	timestamp := r.Header.Get("X-Slack-Request-Timestamp")
-	// TODO: Check timestamp age for possible replay attack
+	time := time.Now().Unix()
+	stamp, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	// Check if request is over 5 minutes old and reject if it is. Prevents replay attack
+	if time-stamp > 300 {
+		return errors.New("invalid timestamp in request header")
+	}
 
 	base := "v0:" + timestamp + ":" + string(body)
 	sign := r.Header.Get("X-Slack-Signature")

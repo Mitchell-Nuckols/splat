@@ -12,17 +12,6 @@ type Command struct {
 	Execute func(*SlashRequest)
 }
 
-// ActionPayload is the action info sent from Slack
-type ActionPayload struct {
-}
-
-// Action provides a structure for building action handlers
-type Action struct {
-	CallbackID string
-	Name       string
-	Execute    func(*ActionPayload)
-}
-
 // SlashRequest is the data recieved from Slack
 type SlashRequest struct {
 	Token,
