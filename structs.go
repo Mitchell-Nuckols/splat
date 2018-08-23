@@ -1,9 +1,15 @@
 package splat
 
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+)
+
 // Command creates a new command to be executed
 type Command struct {
 	Name    string
-	Execute func(*Payload) *Response
+	Execute func(*SlashRequest)
 }
 
 // ActionPayload is the action info sent from Slack
@@ -13,12 +19,12 @@ type ActionPayload struct {
 // Action provides a structure for building action handlers
 type Action struct {
 	CallbackID string
-	Endpoint   string
+	Name       string
 	Execute    func(*ActionPayload)
 }
 
-// Payload is the data recieved from Slack
-type Payload struct {
+// SlashRequest is the data recieved from Slack
+type SlashRequest struct {
 	Token,
 	TeamID,
 	TeamDomain,
@@ -32,6 +38,23 @@ type Payload struct {
 	Text,
 	ResponseURL,
 	TriggerID string
+}
+
+func (p *SlashRequest) Write(r *Response) error {
+	if r == nil {
+		return nil
+	}
+
+	data, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+	_, err = http.Post(p.ResponseURL, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Response is the data sent back to Slack

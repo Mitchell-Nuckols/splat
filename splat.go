@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"log"
@@ -26,17 +25,17 @@ func New(secret string) *App {
 }
 
 // RegisterCommand creates a new command to be executed when it is called from Slack
-func (s *App) RegisterCommand(name string, handler func(*Payload) *Response) {
+func (s *App) RegisterCommand(name string, handler func(*SlashRequest)) {
 	s.commands["/"+name] = Command{"/" + name, handler}
 }
 
 // RegisterAction creates actions on the Slack app
-func (s *App) RegisterAction(callbackID, endpoint string, handler func(*ActionPayload)) error {
+func (s *App) RegisterAction(callbackID, name string, handler func(*ActionPayload)) error {
 	if len(s.actions) == 5 {
 		return errors.New("cannot add another action (exceeded limit of 5)")
 	}
 
-	s.actions[len(s.actions)-1] = Action{callbackID, endpoint, handler}
+	s.actions[len(s.actions)-1] = Action{callbackID, name, handler}
 	return nil
 }
 
@@ -49,66 +48,51 @@ func (s *App) Open(addr string, endpoint string) error {
 			return
 		}
 
-		response := new(Response)
-
 		for k, v := range s.commands {
 			if k == payload.Command {
-				response = v.Execute(payload)
+				go v.Execute(payload)
 				break
 			}
-		}
-		if response != nil {
-			res, err := json.Marshal(&response)
-			if err != nil {
-				log.Println("Splat:", err)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			w.Write(res)
-			return
 		}
 
 		w.WriteHeader(http.StatusOK)
 	})
 
-	for _, a := range s.actions {
-		http.HandleFunc(endpoint+"/"+a.Endpoint, func(w http.ResponseWriter, r *http.Request) {
-			body, err := ioutil.ReadAll(r.Body)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			defer r.Body.Close()
+	/*http.HandleFunc(endpoint+"/actions", func(w http.ResponseWriter, r *http.Request) {
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
 
-			log.Println(string(body))
+		log.Println(string(body))
 
-			err = s.checkSignature(r, body)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
+		err = s.checkSignature(r, body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 
-			payload := new(ActionPayload)
+		payload := new(ActionPayload)
 
-			err = json.Unmarshal(body, &payload)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
+		err = json.Unmarshal(body, &payload)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-			w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 
-			a.Execute(payload)
-		})
-	}
+		for
+		a.Execute(payload)
+	})*/
 
 	return http.ListenAndServe(addr, nil)
 }
 
 // Parses the body data into a program readable format
-func (s *App) fromRequest(r *http.Request) (p *Payload, err error) {
+func (s *App) fromRequest(r *http.Request) (p *SlashRequest, err error) {
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -131,7 +115,7 @@ func (s *App) fromRequest(r *http.Request) (p *Payload, err error) {
 		kv[t[0]] = t[1]
 	}
 
-	p = new(Payload)
+	p = new(SlashRequest)
 	if val, ok := kv["token"]; ok {
 		p.Token = val
 	}

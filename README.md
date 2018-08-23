@@ -6,8 +6,8 @@ This example registers a command `/test` and listens for requests on port `:3000
 ```go
 app := splat.New("YourSigningSecret")
 
-app.RegisterCommand("/test", func(p *splat.Payload) *splat.Response {
-    return &splat.Response{Text: "Hello, World!"}
+app.RegisterCommand("/test", func(r *splat.SlashRequest) {
+    r.Write(&splat.Response{Text: "Hello, World!"})
 })
 
 log.Fatal(app.Open(":3000", "/slackcommands"))
