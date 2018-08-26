@@ -20,7 +20,7 @@ type App struct {
 	commands      map[string]Command
 }
 
-// New creates a new SlackApp object (please don't kill me for using 'object')
+// New creates a new App object (please don't kill me for using 'object')
 func New(secret string) *App {
 	return &App{secret, make(map[string]Command)}
 }
@@ -36,6 +36,7 @@ func (s *App) Open(addr string, endpoint string) error {
 		payload, err := s.fromRequest(r)
 		if err != nil {
 			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
